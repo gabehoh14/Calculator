@@ -22,12 +22,16 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
+#include <math.h>
+#include <stdint.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 #define KEY_NOT_PRESSED   NULL
 #define KEY_PRESSED       0x00
+#define PI                3.1415926535898793238462643383279502884197169399375
+#define DEBUGGING         0
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -46,7 +50,7 @@ char keypad[4][4][100] = {
     {"0", ".", "=", "+"}   // Row 4
 };
 
-char user_inputs[25][100] = {};
+char user_inputs[75][100] = {};
 int current_index = 0;
 int new_key;
 double calculation;
@@ -70,9 +74,26 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 /* USER CODE BEGIN PFP */
-int get_string_length(char** string);
-char* parse_calculations_raw(char** inputs);
-void clear_user_inputs(char user_inputs[][100], int* index);
+void clear_user_inputs(char user_inputs[][100], int* ptr_index);
+void compress(char inputs[75][100]);
+int get_string_length(char string[100]);
+int get_array_length(char arr[75][100]);
+void parse_calculations_raw(char inputs[75][100]);
+void parse_calculations_bracketless(char inputs[75][100]);
+void copy_array(char arr1[], char arr2[100]);
+void simplify(char arr[75][100]);
+int is_operator(char character);
+int is_num(char arr[100]);
+double arr_to_num(char arr[100]);
+void num_to_arr(double num, char arr[100]);
+// double pow(double num, int power);
+uint64_t factorial(int num);
+void sine(char arr[100]);
+void cosine(char arr[100]);
+void tangent(char arr[100]);
+void logarithm(char arr[100]);
+double round(double num);
+int check(double num1, double num2);
 char* keypad_scan(void);
 /* USER CODE END PFP */
 
@@ -112,6 +133,9 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
+  user_inputs[0][0] = '0';
+  user_inputs[1][0] = '+';
+  current_index = 2;
   new_key = 1;
   /* USER CODE END 2 */
 
@@ -128,14 +152,12 @@ int main(void)
 
 	  // Only proceed to process if a key was pressed within previous time frame
 	  // Only proceed if the key is a new key pressed (not held down)
-	  // Only proceed to process if the string is less than 15 char long
+	  // Only proceed to process if the string is less than 74 char long
 	  // If the key is '=' skip and move to other condition
-	  if (key != KEY_NOT_PRESSED && new_key && current_index < 16 && key[0] != '=') {
+	  if (key != KEY_NOT_PRESSED && new_key && current_index < 75 && key[0] != '=') {
 		  // DEBUG START
-		  printf("Key: %s", key);
-		  printf("\n");
-		  printf("Index: %u", current_index);
-		  printf("\n");
+		  printf("Key: %s\n", key);
+//		  printf("Index: %u\n", current_index);
 		  // DEBUG END
 
 		  // Store user inputs as an array
@@ -145,7 +167,7 @@ int main(void)
 			  index++;
 		  }
 		  printf("Current string: ");
-		  for (int i = 0; i <= current_index; i++) {
+		  for (int i = 2; i <= current_index; i++) {
 			  printf("%s", user_inputs[i]);
 		  }
 		  printf("\n");
@@ -167,7 +189,8 @@ int main(void)
 		  printf("%s", key);
 		  printf("\n");
 		  // Call function to read user input array
-//		  char* calculation = parse_calculation_raw(user_inputs);
+		  parse_calculations_raw(user_inputs);
+		  printf("%s\n", user_inputs[0]);
 
 		  // Reset user_input array (call function to do so)
 		  clear_user_inputs(user_inputs, &current_index);
@@ -342,75 +365,682 @@ int _write(int file, char *ptr, int len)
   return len;
 }
 
-int get_string_length(char** string) {
+// Gets the length of string
+// Requires that the string ends in null terminator
+int get_string_length(char string[100]) {
 	int index = 0;
-	while (string[index][0] != '\0') {
+	while (string[index] != '\0') {
 		index++;
 	}
 	return index;
 }
 
 
-char* parse_calculations_raw(char** inputs) {
-	int length = get_string_length(inputs);
-	int brackets_exist = 0;
-	int first_bracket_index = -1;
-	int last_bracket_index = -1;
-
-	// Get index of first "("
-	for (int index = 0; index < length; index++) {
-		if (inputs[index][0] == '(') {
-			first_bracket_index = index;
-			brackets_exist = 1;
-			break;
-		}
+// Gets the length of an array of strings
+// Requires that the "end" of the array has the null terminator at index 0
+int get_array_length(char arr[75][100]) {
+	int index = 0;
+	while (arr[index][0] != '\0') {
+		index++;
 	}
+	return index;
+}
 
-	// Get index of last ")"
-	for (int index = length-1; index >= 0; index--) {
-		if (inputs[index][0] == ')') {
-			last_bracket_index = index;
-			brackets_exist = 1;
-			break;
-		}
-	}
 
-	// Check if there is an extra of either bracket
-	if (brackets_exist && (first_bracket_index < 0 || last_bracket_index < 0)) {
-		// Throw an error
-		return NULL;
-	}
+// Sets all characters from index length onwards as the null terminator
+void clear_array(char inputs[75][100], int length) {
+    for (int i = length; i < 30; i++) {
+        for (int j = 0; j < 100; j++) {
+            inputs[i][j] = '\0';
+        }
+    }
+}
 
-	if (brackets_exist) {
-		// Create string of length inside+1 (last char is null terminator)
-		int inside_length = last_bracket_index - first_bracket_index;
-		char* inside[inside_length];
-		for (int count = 0; count < inside_length; count++) {
-			inside[count] = inputs[first_bracket_index + count + 1];
-		}
-		// Calculate inside brackets
-		char* calculated_inside = parse_calculations_raw(inside);
 
-		// Remove brackets, move everything down
-		inputs[first_bracket_index] = calculated_inside;
-		for (int i = 0; i < inside_length; i++) {
-			inputs[first_bracket_index + i + 1] = inputs[last_bracket_index + i + 1];
-		}
-	}
+// Calculates and parses a function with brackets
+// A recursive call is made if brackets are found, passing an array of the calculation inside the brackets
+// Brackets are replaced with the calculated inside value, shifting everything down once brackets are removed
+// The final calculated value is stored in inputs[0]
+void parse_calculations_raw(char inputs[75][100]) {
+    // Compress the inputs array
+    compress(inputs);
 
-	// There should be no brackets at this point
+    // Initialize variables
+    int length = get_array_length(inputs);
+    int found_open = 0;
+    int open_index = -1;
+    int close_index = -1;
+    int tracker = 0;
+
+    // ----------- DEBUG --------------
+    if (DEBUGGING) {
+        for (int i = 0; i < length; i++) {
+            printf("Post Compression: %s\n", inputs[i]);
+        }
+        printf("\n");
+    }
+    // ----------- DEBUG --------------
+
+    for (int index = 0; index < length; index++) {
+        if (inputs[index][0] == '(') {
+            tracker++;
+            if (!found_open) {
+                found_open = 1;
+                open_index = index;
+            }
+        }
+        else if (inputs[index][0] == ')') {
+            tracker--;
+            close_index = index;
+        }
+        // If the outside-most set of brackets were found, execute the following
+        // open_index and close_index hold the index of the corresponding brackets
+        if (found_open && tracker == 0) {
+            // Creates a new array (inside) to pass through and calculate new value
+            int inside_length = close_index - open_index - 1;
+            char inside[inside_length + 1][100]; // +1 ensures null terminator
+            for (int i = 0; i < inside_length; i++) {
+                copy_array(inside[i], inputs[open_index + i + 1]);
+            }
+            parse_calculations_raw(inside);
+
+            // Replace the "(" with the calculated inside result
+            copy_array(inputs[open_index], inside[0]);
+
+            // Shift all elements, up to and including the null terminator, down
+            for (int i = 0; i < length - close_index; i++) {
+                copy_array(inputs[open_index + i + 1], inputs[close_index + i + 1]);
+            }
+            index = open_index + 1;
+            length = get_array_length(inputs);
+            found_open = 0;
+        }
+    }
+    parse_calculations_bracketless(inputs);
+}
+
+
+// Compresses the inputs array so that each number is individually stored at one index of the inputs array
+/* Ex:
+   inputs = { {'4'},
+              {'5'},
+              {'-'},
+              {'2'},
+              {'.'},
+              {'4'} }
+
+   After compression:
+   inputs = { {'4', '5'},
+              {'-'},
+              {'2', '.', '4'} }
+*/
+void compress(char inputs[75][100]) {
+    // Initialize variables
+    int length = get_array_length(inputs);
+    int number_start_index = -1;
+    int number_length = 0;
+    // Loop through each index until null terminator
+    for (int i = 0; i < length + 1; i++) {
+        char value = inputs[i][0];
+
+        // Enter if loop if the character at index i is a number/decimal
+        // Sets index as the start index if not yet found (< 0)
+        // Assigns the character in the appropriate position if start index is found
+        if ((value >= '0' && value <= '9') || value == '.') {
+            number_length++;
+            if (number_start_index < 0) {
+                number_start_index = i;
+                number_length = 0;
+            }
+            else {
+                inputs[number_start_index][number_length] = value;
+            }
+        }
+        else {
+            // All numbers are shifted down when the end of a number is found
+            if (number_start_index >= 0 && number_length >= 0) {
+                for (int i = number_start_index + 1; i <= length; i++) {
+                    inputs[i][0] = inputs[i + number_length][0];
+                }
+                i = number_start_index + 1;
+                number_start_index = -1;
+            }
+        }
+        length = get_array_length(inputs);
+    }
+}
+
+
+// Copies elements in arr2 to arr1
+// Assume arr1 has appropriate size (add assertion for this)
+void copy_array(char arr1[], char arr2[100]) {
+    int arr2_length = get_string_length(arr2);
+    for (int i = 0; i < arr2_length + 1; i++) { // +1 added to copy null terminator
+        arr1[i] = arr2[i];
+    }
+}
+
+void parse_calculations_bracketless(char inputs[75][100]) {
+    // Evaluate all trig and log expressions
+    int length = get_array_length(inputs);
+    // ----------- DEBUG START --------------
+    if (DEBUGGING) {
+        for (int i = 0; i < length; i++) {
+            printf("Bracketless begin: %s\n", inputs[i]);
+        }
+        printf("\n");
+    }
+    // ----------- DEBUG END --------------
+
+    int found_function = 0; // true/false
+    for (int index = 0; index < length; index++) {
+        char value = inputs[index][0];
+        if (value == 's') {
+            sine(inputs[index+3]);
+            found_function = 1;
+        }
+        else if (value == 'c') {
+            cosine(inputs[index+3]);
+            found_function = 1;
+        }
+        else if (value == 't') {
+            tangent(inputs[index+3]);
+            found_function = 1;
+        }
+        else if (value == 'l') {
+            // log function
+            logarithm(inputs[index + 3]);
+            found_function = 1;
+        }
+        if (found_function) {
+            copy_array(inputs[index], inputs[index+3]);
+            for (int i = 0; i < length - index - 3; i++) {
+                copy_array(inputs[index + i + 1], inputs[index + i + 4]);
+            }
+            found_function = 0;
+            length = get_array_length(inputs);
+        }
+    }
+
+
+    // ----------- DEBUG START --------------
+    if (DEBUGGING) {
+        for (int i = 0; i < length; i++) {
+            printf("End Trig/Log: %s\n", inputs[i]);
+        }
+        printf("\n");
+    }
+    // ----------- DEBUG END --------------
+    // At this point there should be no more trig and log expressions
+
+    length = get_array_length(inputs);
+
+    // Evaluate factorials
+    // At this point there should be no more factorials expressions
+    for (int index = 0; index < length; index++) {
+        int factorial_index = -1;
+
+        char value = inputs[index][0];
+        if (value == '!') {
+            factorial_index = index;
+        }
+        if (factorial_index > 0 && is_num(inputs[factorial_index - 1])) {
+            double num = arr_to_num(inputs[factorial_index - 1]);
+            if (num - (int)num > 0) {
+                // RETURN AN ERROR (decimal factorial)
+            }
+            else {
+                num = factorial((int)num);
+                num_to_arr(num, inputs[factorial_index - 1]);
+                for (int i = 0; i < length - factorial_index; i++) {
+                    copy_array(inputs[factorial_index + i], inputs[factorial_index + i + 1]);
+                }
+                length = get_array_length(inputs);
+            }
+        }
+    }
+
+    // ----------- DEBUG START --------------
+    if (DEBUGGING) {
+        for (int i = 0; i < length; i++) {
+            printf("End Factorial: %s\n", inputs[i]);
+        }
+        printf("\n");
+    }
+    // ----------- DEBUG END --------------
+
+    length = get_array_length(inputs);
+
+    // Evaluate exponents
+    // At this point there should be no more exponents expressions
+
+    for (int index = length - 1; index >= 0; index--) {
+        int base_index = -1;
+        int pow_index = -1;
+        char val = inputs[index][0];
+        if (val == '^') {
+            if (index == 0) {
+                // return no base error
+            }
+            else if (!is_num(inputs[index - 1])) {
+                // base not a num
+            }
+            else if (!is_num(inputs[index + 1])) {
+                // pow not a num
+            }
+            else {
+                base_index = index - 1;
+                pow_index = index + 1;
+                double base = arr_to_num(inputs[base_index]);
+                double power = arr_to_num(inputs[pow_index]);
+                double result = pow(base, power);
+                num_to_arr(result, inputs[base_index]);
+                for (int i = 0; i < length - index + 1; i++) {
+                    copy_array(inputs[index + i], inputs[index + i + 2]);
+                }
+            }
+        }
+    }
+
+
+    // ----------- DEBUG START --------------
+    if (DEBUGGING) {
+        for (int i = 0; i < length; i++) {
+            printf("End exp: %s\n", inputs[i]);
+        }
+        printf("\n");
+    }
+    // ----------- DEBUG END --------------
+
+    // Evaluate multiplication and division
+    length = get_array_length(inputs);
+    simplify(inputs);
+    if (inputs[0][0] == '-' && inputs[0][1] == '\0') {
+        inputs[0][2] = '\0';
+        inputs[0][1] = '1';
+    }
+    length = get_array_length(inputs);
+
+    // ----------- DEBUG START --------------
+    if (DEBUGGING) {
+        for (int i = 0; i < length; i++) {
+            printf("Pre m/d: %s\n", inputs[i]);
+        }
+        printf("\n");
+    }
+    // ----------- DEBUG END --------------
+
+    for (int index = 0; index < length; index++) {
+        int calculated = 0;
+        double first_num = 0;
+        int found_first_num = 0;
+        length = get_array_length(inputs);
+        if (is_num(inputs[index])) {
+            first_num = arr_to_num(inputs[index]);
+            found_first_num = 1;
+        }
+        else {
+            // RETURN AN ERROR (multiplying/dividing with no first num, NEED TO ACCOUNT FOR + AND -)
+        }
+
+        if (index + 1 < length && found_first_num) {
+            char value = inputs[index + 1][0];
+            if (value == '*') {
+                if (index + 2 < length) {
+                    if (is_num(inputs[index + 2])) {
+                        double second_num = arr_to_num(inputs[index + 2]);
+                        first_num *= second_num;
+                        num_to_arr(first_num, inputs[index]);
+                        for (int i = 0; i < length - index - 2; i++) {
+                            copy_array(inputs[index + i + 1], inputs[index + i + 3]);
+                        }
+                        calculated = 1;
+                    }
+                    else {
+                        // RETURN AN ERROR (multiplying by something that isnt a number)
+                    }
+                }
+                else {
+                    // RETURN AN ERROR (multiplying by nothing)
+                }
+            }
+            else if (value == '/') {
+                if (index + 2 < length) {
+                    if (is_num(inputs[index + 2])) {
+                        double second_num = arr_to_num(inputs[index + 2]);
+                        if (second_num != 0) {
+                            first_num /= second_num;
+                            num_to_arr(first_num, inputs[index]);
+                            for (int i = 0; i < length - index - 2; i++) {
+                                copy_array(inputs[index + i + 1], inputs[index + i + 3]);
+                            }
+                            calculated = 1;
+                        }
+                        else {
+                            // RETURN AN ERROR (division by 0);
+                        }
+                    }
+                    else {
+                        // RETURN AN ERROR (dividing by something that isnt a number)
+                    }
+                }
+                else {
+                    // RETURN AN ERROR (dividing by nothing)
+                }
+            }
+            else if (is_num(inputs[index + 1])) {
+                // calculate here
+                double second_num = arr_to_num(inputs[index + 1]);
+                first_num *= second_num;
+                num_to_arr(first_num, inputs[index]);
+                for (int i = 0; i < length - index - 1; i++) {
+                    copy_array(inputs[index + i + 1], inputs[index + i + 2]);
+                }
+                calculated = 1;
+            }
+        }
+
+        if (calculated) {
+            index--;
+        }
+    }
+
+    length = get_array_length(inputs);
+
+    // At this point there should be no more multiplication/division
+
+    // Evaluate addition and subtraction
+    for (int index = 0; index < length; index++) {
+        int found_first_num = 0; // boolean
+        double first_num = 0;
+        double second_num = 0;
+        int calculated = 0;
+        if (is_num(inputs[index])) {
+            first_num = arr_to_num(inputs[index]);
+            found_first_num = 1;
+        }
+
+        if (found_first_num && index + 1 < length) {
+            char value = inputs[index + 1][0];
+            if (value == '+') {
+                if (index + 2 < length) {
+                    second_num = arr_to_num(inputs[index + 2]);
+                    first_num += second_num;
+                    num_to_arr(first_num, inputs[index]);
+                    for (int i = 0; i < length - index - 2; i++) {
+                        copy_array(inputs[index + i + 1], inputs[index + i + 3]);
+                    }
+                    calculated = 1;
+                }
+                else {
+                    // RETURN AN ERROR (adding by nothing)
+                }
+            }
+            if (value == '-') {
+                if (index + 2 < length) {
+                    second_num = arr_to_num(inputs[index + 2]);
+                    first_num -= second_num;
+                    num_to_arr(first_num, inputs[index]);
+                    for (int i = 0; i < length - index - 2; i++) {
+                        copy_array(inputs[index + i + 1], inputs[index + i + 3]);
+                    }
+                    calculated = 1;
+                }
+                else {
+                    // RETURN AN ERROR (adding by nothing)
+                }
+            }
+        }
+        if (calculated) {
+            index--;
+        }
+    }
+
+    length = get_array_length(inputs);
+    // EVERYTHING IS EVALUATED AT THIS POINT
+}
+
+void simplify(char arr[75][100]) {
+    int length = get_array_length(arr);
+    int found_operator = 0; // boolean
+    int multiplier = 1;
+    int start_index = -1;
+    int counter = 0;
+    for (int i = 0; i < length; i++) {
+        if (is_operator(arr[i][0]) && arr[i][1] == '\0' && found_operator == 0) {
+            start_index = i;
+            found_operator = 1;
+        }
+        else {
+            if (!is_num(arr[i]) && (arr[i][0] == '+' || arr[i][0] == '-')) {
+                counter++;
+                if (arr[i][0] == '-') {
+                    multiplier *= -1;
+                }
+            }
+            else if (found_operator) {
+                double num = arr_to_num(arr[i]);
+                num *= multiplier;
+                num_to_arr(num, arr[i]);
+                for (int j = 0; j < length - start_index; j++) {
+                    copy_array(arr[start_index + j + 1], arr[start_index + j + counter + 1]);
+                }
+                length = get_array_length(arr);
+                i = start_index;
+                found_operator = 0;
+                counter = 0;
+                multiplier = 1;
+            }
+        }
+    }
+}
+
+double arr_to_num(char arr[100]) {
+    int index = 0;
+    double num = 0;
+    int is_neg = 0;
+    if (arr[index] == '-') {
+        is_neg = 1;
+        index++;
+    }
+    while (arr[index] != '\0' && arr[index] != '.') {
+        num *= 10;
+        char character = '0';
+        // ADD CHECK IF THERE IS UNKNOWN CHARACTER (to_add = -1 or something)
+        for (int i = 0; character + i <= '9'; i++) {
+            if (arr[index] == (character + i)) {
+                num += i;
+            }
+        }
+        index++;
+    }
+    if (arr[index] == '.') {
+        index++;
+        double divisor = 1;
+        while (arr[index] != '\0') {
+            divisor *= 10;
+            char character = '0';
+            // ADD CHECK IF THERE IS UNKNOWN CHARACTER (to_add = -1 or something)
+            for (int i = 0; character + i <= '9'; i++) {
+                if (arr[index] == (character + i)) {
+                    num += i/divisor;
+                }
+            }
+            index++;
+        }
+    }
+    if (is_neg) {
+        num *= -1;
+    }
+    return num;
+}
+
+void num_to_arr(double num, char arr[100]) {
+    int index = 0;
+    if (num == 0) {
+        arr[0] = '0';
+        arr[1] = '\0';
+        return;
+    }
+    if (num < 0) {
+        arr[0] = '-';
+        num *= -1;
+        index++;
+    }
+    int whole_num = (int)num;
+    double fractional_num = num - whole_num;
+
+    // placing in whole_num digits
+    int num_digits = 0;
+    int temp = whole_num;
+    while (temp != 0) {
+        num_digits += 1;
+        temp /= 10;
+    }
+    for (int i = num_digits - 1; i >= 0; i--) {
+        arr[i + index] = (whole_num % 10) + '0';
+        whole_num /= 10;
+    }
+    index += num_digits;
+    if (fractional_num != 0) {
+        // place decimal
+        arr[index] = '.';
+        index++;
+
+        // placing in decimal digits (need to account for floating point errors)
+        while (fractional_num > 0.0001 && fractional_num < 0.9999) {
+            fractional_num *= 10;
+            if (fractional_num - ((int)fractional_num + 1) > -0.0001) {
+                fractional_num += 1;
+            }
+            arr[index] = (int)fractional_num + '0';
+            fractional_num -= (int)fractional_num;
+            index++;
+        }
+    }
+
+    arr[index] = '\0';
+}
+
+int is_operator(char character) {
+    if (character == '+' || character == '-' || character == '*' || character == '/') {
+        return 1;
+    }
+    return 0;
+}
+
+int is_num(char arr[100]) {
+    char value = arr[0];
+    if ((value >= '0' && value <= '9') || value == '.' || (value == '-' && ((arr[1] >= '0' && arr[1] <= '9') || arr[1] == '.'))) {
+        return 1;
+    }
+    return 0;
+}
+
+// double pow(double num, int power) {
+//     double result = 1;
+//     for (int i = 0; i < power; i++) {
+//         result *= num;
+//     }
+//     return result;
+// }
+
+uint64_t factorial(int num) {
+    uint64_t result = 1;
+    for (int i = num; i > 0; i--) {
+        result *= i;
+    }
+    return result;
+}
+
+void sine(char arr[100]) {
+    double num = arr_to_num(arr);
+    while (!(num <= 180 && num > -180)) {
+        num -= 360;
+    }
+    num *= (PI/180);
+    double result = 0;
+    for (int i = 0; i < 10; i++) {
+        result += (pow(-1, i) * pow(num, 2*i + 1) / factorial(2*i + 1));
+    }
+    result = round(result);
+    num_to_arr(result, arr);
+}
+
+void cosine(char arr[100]) {
+    double num = arr_to_num(arr);
+    while (!(num <= 180 && num > -180)) {
+        num -= 360;
+    }
+    num *= (PI/180);
+    double result = 0;
+    for (int i = 0; i < 10; i++) {
+        result += (pow(-1, i) * pow(num, 2*i) / factorial(2*i));
+    }
+    result = round(result);
+    num_to_arr(result, arr);
+}
+
+// ADD CHECK FOR DIVISION BY 0
+void tangent(char arr[100]) {
+    double num = arr_to_num(arr);
+    sine(arr);
+    double sined = arr_to_num(arr);
+    num_to_arr(num, arr);
+    cosine(arr);
+    double cosined = arr_to_num(arr);
+    double result = round(sined / cosined);
+    if (cosined > 0.00001 || cosined < -0.00001) {
+        // printf("%f\n", (sined/cosined * 10000000000));
+        num_to_arr(result, arr);
+    }
+    else {
+        return;
+        // return error
+    }
+}
+
+void logarithm(char arr[100]) {
+    double num = arr_to_num(arr);
+    if (num <= 0) {
+        // return error
+    }
+    double result = log10(num);
+    result = round(result);
+    num_to_arr(result, arr);
+}
+
+double round(double num) {
+    num *= 100000000;
+    num = (int)num;
+    num /= 100000000;
+    return num;
+}
+
+int check(double num1, double num2) {
+    num1 *= 100000;
+    num1 = (int)num1;
+    num1 /= 100000;
+    num2 *= 100000;
+    num2 = (int)num2;
+    num2 /= 100000;
+    if (num1 == num2) {
+        return 1;
+    }
+    return 0;
 }
 
 
 void clear_user_inputs(char user_inputs[][100], int* ptr_index) {
-	int index = 0;
-	while (user_inputs[index][0] != '\0') {
+	for (int index = 0; index < 76; index++) {
 		for (int inner = 0; inner < 100; inner++) {
 			user_inputs[index][inner] = '\0';
 		}
 		index++;
 	}
-	*ptr_index = 0;
+	user_inputs[0][0] = '0';
+	user_inputs[1][0] = '+';
+	*ptr_index = 2;
 	printf("Cleared\n");
 }
 

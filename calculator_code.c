@@ -210,7 +210,7 @@ void parse_calculations_raw(char inputs[75][100]) {
         if (found_open && tracker == 0) {
             // Creates a new array (inside) to pass through and calculate new value
             int inside_length = close_index - open_index - 1;
-            char inside[inside_length + 1][100] = {}; // +1 ensures null terminator
+            char inside[inside_length + 1][100]; // +1 ensures null terminator
             for (int i = 0; i < inside_length; i++) {
                 copy_array(inside[i], inputs[open_index + i + 1]);
             }
@@ -628,7 +628,6 @@ double arr_to_num(char arr[100]) {
     }
     if (arr[index] == '.') {
         index++;
-        double decimal = 0;
         double divisor = 1;
         while (arr[index] != '\0') {
             divisor *= 10;
