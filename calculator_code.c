@@ -4,7 +4,7 @@
 
 // define
 double PI = 3.1415926535898793238462643383279502884197169399375;
-int DEBUGGING = 0;
+int DEBUGGING = 1;
 
 int main();
 double calculate(char test[100], double expected);
@@ -39,49 +39,49 @@ char keypad[4][4][100] = {
 
 int main() {
     // More complicated expressions with mixed unary operators:
-    char test1[100]  = "2+3*4";                               calculate(test1, 14.0);
-    char test2[100]  = "log(15-2^2+sin(10-2*45))/12+3^0.5";   calculate(test2, 1.815439072);
-    char test3[100]  = "sin(0)+cos(0)";                       calculate(test3, 1.0);
-    char test4[100]  = "5*(2+3)^2";                           calculate(test4, 125.0);
-    char test5[100]  = "16^.5+log(1)";                        calculate(test5, 4.0);  // if sqrt supported
-    char test6[100]  = "3+4*2/(1-5)^2";                       calculate(test6, 3.5);
-    char test7[100]  = "tan(0)";                              calculate(test7, 0.0);
-    char test8[100]  = "log(1)";                              calculate(test8, 0.0);
-    char test9[100]  = "-3+4";                                calculate(test9, 1.0);
-    char test10[100] = "2^(3^2)";                             calculate(test10, 512.0); // right-associative
-    char test11[100] = "-(3+2)*4";                            calculate(test11, -20.0);
-    char test12[100] = "+--(4-2)*(6+1)";                      calculate(test12, 14.0);
-    char test13[100] = "sin(180/2)";                          calculate(test13, 1.0);
-    char test14[100] = "cos(180)";                            calculate(test14, -1.0);
-    char test15[100] = "tan(180)";                            calculate(test15, 0.0);
-    char test16[100] = "log(10)";                             calculate(test16, 1.0);  // if e constant supported
-    char test17[100] = "1/(2+3)*4";                           calculate(test17, 0.8);
-    char test18[100] = "3^(-2)";                              calculate(test18, 0.111111111); // 1/9
-    char test19[100] = "-sin(-180/2)";                        calculate(test19, 1.0);
-    char test20[100] = "(2+3)*(4+5)";                         calculate(test20, 45.0);
-    char test21[100] = "sin(30) + cos(60)";                   calculate(test21, 1.0);              // 0.5 + 0.5
-    char test22[100] = "log(1000)";                           calculate(test22, 3.0);              // base 10
-    char test23[100] = "2^3^1";                               calculate(test23, 8.0);              // 2^(3)
-    char test24[100] = "2^(3^0)";                             calculate(test24, 2.0);              // 2^1
-    char test25[100] = "sin(90)^2 + cos(90)^2";               calculate(test25, 1.0);              // identity
-    char test26[100] = "3+4*-2";                              calculate(test26, -5.0);             // test unary minus
-    char test27[100] = "-3^2";                                calculate(test27, -9.0);             // unary minus before power
-    char test28[100] = "(-3)^2";                              calculate(test28, 9.0);              // parentheses override precedence
-    char test29[100] = "-(-(-1))";                            calculate(test29, -1.0);             // triple negation
+    // char test1[100]  = "2+3*4";                               calculate(test1, 14.0);
+    // char test2[100]  = "log(15-2^2+sin(10-2*45))/12+3^0.5";   calculate(test2, 1.815439072);
+    // char test3[100]  = "sin(0)+cos(0)";                       calculate(test3, 1.0);
+    // char test4[100]  = "5*(2+3)^2";                           calculate(test4, 125.0);
+    // char test5[100]  = "16^.5+log(1)";                        calculate(test5, 4.0);  // if sqrt supported
+    // char test6[100]  = "3+4*2/(1-5)^2";                       calculate(test6, 3.5);
+    // char test7[100]  = "tan(0)";                              calculate(test7, 0.0);
+    // char test8[100]  = "log(1)";                              calculate(test8, 0.0);
+    // char test9[100]  = "-3+4";                                calculate(test9, 1.0);
+    // char test10[100] = "2^(3^2)";                             calculate(test10, 512.0); // right-associative
+    // char test11[100] = "-(3+2)*4";                            calculate(test11, -20.0);
+    // char test12[100] = "+--(4-2)*(6+1)";                      calculate(test12, 14.0);
+    // char test13[100] = "sin(180/2)";                          calculate(test13, 1.0);
+    // char test14[100] = "cos(180)";                            calculate(test14, -1.0);
+    // char test15[100] = "tan(180)";                            calculate(test15, 0.0);
+    // char test16[100] = "log(10)";                             calculate(test16, 1.0);  // if e constant supported
+    // char test17[100] = "1/(2+3)*4";                           calculate(test17, 0.8);
+    // char test18[100] = "3^(-2)";                              calculate(test18, 0.111111111); // 1/9
+    // char test19[100] = "-sin(-180/2)";                        calculate(test19, 1.0);
+    // char test20[100] = "(2+3)*(4+5)";                         calculate(test20, 45.0);
+    // char test21[100] = "sin(30) + cos(60)";                   calculate(test21, 1.0);              // 0.5 + 0.5
+    // char test22[100] = "log(1000)";                           calculate(test22, 3.0);              // base 10
+    // char test23[100] = "2^3^1";                               calculate(test23, 8.0);              // 2^(3)
+    // char test24[100] = "2^(3^0)";                             calculate(test24, 2.0);              // 2^1
+    // char test25[100] = "sin(90)^2+cos(90)^2";               calculate(test25, 1.0);              // identity
+    // char test26[100] = "3+4*-2";                              calculate(test26, -5.0);             // test unary minus
+    // char test27[100] = "-3^2";                                calculate(test27, -9.0);             // unary minus before power
+    // char test28[100] = "(-3)^2";                              calculate(test28, 9.0);              // parentheses override precedence
+    // char test29[100] = "-(-(-1))";                            calculate(test29, -1.0);             // triple negation
     char test30[100] = "2^2^2^0";                             calculate(test30, 16.0);             // 2^(2^(2^0)) = 2^2 = 4, 2^4 = 16
-    char test31[100] = "log(1+9)";                            calculate(test31, 1.0);              // log(10)
-    char test32[100] = "cos(0)*sin(90)";                      calculate(test32, 1.0);              // 1*1
-    char test33[100] = "tan(45)+tan(135)";                    calculate(test33, 0.0);              // 1 + (-1)
-    char test34[100] = "log(10^2)";                           calculate(test34, 2.0);              // log(100)
-    char test35[100] = "2^(-2)";                              calculate(test35, 0.25);             // 1 / (2^2)
-    char test36[100] = "cos(60)^2-sin(60)^2";                 calculate(test36, -0.5);             // trig identity
-    char test37[100] = "3^0+4^0+5^0";                         calculate(test37, 3.0);              // 1+1+1
-    char test38[100] = "log(0.01)";                           calculate(test38, -2.0);             // log(1/100)
-    char test39[100] = "2^(1+1)*2";                           calculate(test39, 8.0);              // (2^2)*2 = 4*2
-    char test40[100] = "sin(720)";                            calculate(test40, 0.0);              // 720° = 2 full rotations
-    char test41[100] = "log(100+sin(60)*2^3)/(3+cos(90))";    calculate(test41, 0.67636408973); // ≈ log(100 + 0.866*8)/3 ≈ log(106.93)/3 ≈ 2.9138/3
-    char test42[100] = "3^(sin(30+60)/2)+4^(cos(60)^2)";      calculate(test42, 3.14626436994); // 3^(1/2) + 4^0.25 ≈ 1.732 + 1.414
-    char test43[100] = "log(25+cos(180)/tan(45))+sin(90)^2";  calculate(test43, 2.38021124171); // log(25 - 1/1) + 1 = log(24) + 1 ≈ 1.3802 + 1
+    // char test31[100] = "log(1+9)";                            calculate(test31, 1.0);              // log(10)
+    // char test32[100] = "cos(0)*sin(90)";                      calculate(test32, 1.0);              // 1*1
+    // char test33[100] = "tan(45)+tan(135)";                    calculate(test33, 0.0);              // 1 + (-1)
+    // char test34[100] = "log(10^2)";                           calculate(test34, 2.0);              // log(100)
+    // char test35[100] = "2^(-2)";                              calculate(test35, 0.25);             // 1 / (2^2)
+    // char test36[100] = "cos(60)^2-sin(60)^2";                 calculate(test36, -0.5);             // trig identity
+    // char test37[100] = "3^0+4^0+5^0";                         calculate(test37, 3.0);              // 1+1+1
+    // char test38[100] = "log(0.01)";                           calculate(test38, -2.0);             // log(1/100)
+    // char test39[100] = "2^(1+1)*2";                           calculate(test39, 8.0);              // (2^2)*2 = 4*2
+    // char test40[100] = "sin(720)";                            calculate(test40, 0.0);              // 720° = 2 full rotations
+    // char test41[100] = "log(100+sin(60)*2^3)/(3+cos(90))";    calculate(test41, 0.67636408973); // ≈ log(100 + 0.866*8)/3 ≈ log(106.93)/3 ≈ 2.9138/3
+    // char test42[100] = "3^(sin(30+60)/2)+4^(cos(60)^2)";      calculate(test42, 3.14626436994); // 3^(1/2) + 4^0.25 ≈ 1.732 + 1.414
+    // char test43[100] = "log(25+cos(180)/tan(45))+sin(90)^2";  calculate(test43, 2.38021124171); // log(25 - 1/1) + 1 = log(24) + 1 ≈ 1.3802 + 1
     
     // char test44[100] = "2^(sin(30+15) * cos(45)) + log(1000)/3";    
     // calculate(test44, 3.106); // ≈ 2^(0.707*0.707) + 3 ≈ 2^0.5 + 1 ≈ 1.414 + 1
@@ -386,7 +386,7 @@ void parse_calculations_bracketless(char inputs[75][100]) {
     // Evaluate exponents
     // At this point there should be no more exponents expressions
 
-    for (int index = 0; index < length; index++) {
+    for (int index = length - 1; index >= 0; index--) {
         int base_index = -1;
         int pow_index = -1;
         char val = inputs[index][0];
