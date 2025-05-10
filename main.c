@@ -475,6 +475,7 @@ void parse_calculations_raw(char inputs[75][100]) {
         }
     }
     parse_calculations_bracketless(inputs);
+    num_to_arr(round(arr_to_num(user_inputs[0])), user_inputs[0]);
 }
 
 

@@ -39,7 +39,7 @@ char keypad[4][4][100] = {
 
 int main() {
     // More complicated expressions with mixed unary operators:
-    // char test1[100]  = "(7*5)-(5+--(5*3))";                               calculate(test1, 10.0);
+    char test1[100]  = "(5478*654)";                               calculate(test1, 10.0);
     // char test2[100]  = "log(15-2^2+sin(10-2*45))/12+3^0.5";   calculate(test2, 1.815439072);
     // char test3[100]  = "sin(0)+cos(0)";                       calculate(test3, 1.0);
     // char test4[100]  = "5*(2+3)^2";                           calculate(test4, 125.0);
@@ -229,6 +229,7 @@ void parse_calculations_raw(char inputs[75][100]) {
         }
     }
     parse_calculations_bracketless(inputs);
+    num_to_arr(round(arr_to_num(inputs[0])), inputs[0]);
 }
 
 
@@ -783,9 +784,17 @@ void logarithm(char arr[100]) {
 }
 
 double round(double num) {
-    num *= 100000000;
-    num = (int)num;
-    num /= 100000000;
+    double whole = (int)num;
+    double dec = num - whole;
+    int multiplier = 1;
+    int tracker = 0;
+    while (dec > 0.000001 || num > 214748364) {
+        multiplier *= 10;
+        num *= 10; 
+        whole = (int)num;
+        dec = num - whole;
+    }
+    num /= multiplier;
     return num;
 }
 
