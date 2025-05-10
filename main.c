@@ -43,9 +43,16 @@
 //    {'0', '.', '=', '+'}   // Row 4
 //};
 
-char keypad[4][4][100] = {
+char keypad1[4][4][100] = {
     {"7", "8", "9", "/"},  // Row 1
     {"4", "5", "6", "*"},  // Row 2
+    {"1", "2", "3", "-"},  // Row 3
+    {"0", ".", "=", "+"}   // Row 4
+};
+
+char keypad2[4][4][100] = {
+    {"(", ")", "^", ""},  // Row 1
+    {"sin(", "cos(", "tan(", "log("},  // Row 2
     {"1", "2", "3", "-"},  // Row 3
     {"0", ".", "=", "+"}   // Row 4
 };
@@ -63,7 +70,7 @@ double calculation;
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-UART_HandleTypeDef huart2;
+I2C_HandleTypeDef hi2c1;
 
 /* USER CODE BEGIN PV */
 
@@ -72,7 +79,7 @@ UART_HandleTypeDef huart2;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_USART2_UART_Init(void);
+static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
 void clear_user_inputs(char user_inputs[][100], int* ptr_index);
 void compress(char inputs[75][100]);
@@ -94,7 +101,8 @@ void tangent(char arr[100]);
 void logarithm(char arr[100]);
 double round(double num);
 int check(double num1, double num2);
-char* keypad_scan(void);
+char* keypad1_scan(void);
+char* keypad2_scan(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -131,7 +139,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_USART2_UART_Init();
+  MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
   user_inputs[0][0] = '0';
   user_inputs[1][0] = '+';
@@ -144,11 +152,15 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
+
     /* USER CODE BEGIN 3 */
 
 	  // Delay between user inputs
 	  HAL_Delay(10);
-	  char* key = keypad_scan();
+	  char* key = keypad1_scan();
+	  if (key == KEY_NOT_PRESSED) {
+		  key = keypad2_scan();
+	  }
 
 	  // Only proceed to process if a key was pressed within previous time frame
 	  // Only proceed if the key is a new key pressed (not held down)
@@ -163,9 +175,11 @@ int main(void)
 		  // Store user inputs as an array
 		  int index = 0;
 		  while (key[index] != '\0') {
-			  user_inputs[current_index][index] = key[index];
+			  user_inputs[current_index][0] = key[index];
 			  index++;
+			  current_index++;
 		  }
+
 		  printf("Current string: ");
 		  for (int i = 2; i <= current_index; i++) {
 			  printf("%s", user_inputs[i]);
@@ -175,7 +189,6 @@ int main(void)
 		  // Call a function to update the LCD display (pass in user inputs), void function
 		  //
 
-		  current_index++;
 		  new_key = 0;
 	  }
 	  else if (key == KEY_NOT_PRESSED){
@@ -196,8 +209,6 @@ int main(void)
 		  clear_user_inputs(user_inputs, &current_index);
 
 		  new_key = 0;
-		  // Turn on debug light
-		  HAL_GPIO_WritePin(Light_bulb_GPIO_Port, Light_bulb_Pin, GPIO_PIN_SET);
 	  }
   }
   /* USER CODE END 3 */
@@ -250,35 +261,36 @@ void SystemClock_Config(void)
 }
 
 /**
-  * @brief USART2 Initialization Function
+  * @brief I2C1 Initialization Function
   * @param None
   * @retval None
   */
-static void MX_USART2_UART_Init(void)
+static void MX_I2C1_Init(void)
 {
 
-  /* USER CODE BEGIN USART2_Init 0 */
+  /* USER CODE BEGIN I2C1_Init 0 */
 
-  /* USER CODE END USART2_Init 0 */
+  /* USER CODE END I2C1_Init 0 */
 
-  /* USER CODE BEGIN USART2_Init 1 */
+  /* USER CODE BEGIN I2C1_Init 1 */
 
-  /* USER CODE END USART2_Init 1 */
-  huart2.Instance = USART2;
-  huart2.Init.BaudRate = 115200;
-  huart2.Init.WordLength = UART_WORDLENGTH_8B;
-  huart2.Init.StopBits = UART_STOPBITS_1;
-  huart2.Init.Parity = UART_PARITY_NONE;
-  huart2.Init.Mode = UART_MODE_TX_RX;
-  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_UART_Init(&huart2) != HAL_OK)
+  /* USER CODE END I2C1_Init 1 */
+  hi2c1.Instance = I2C1;
+  hi2c1.Init.ClockSpeed = 100000;
+  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c1.Init.OwnAddress1 = 0;
+  hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2 = 0;
+  hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN USART2_Init 2 */
+  /* USER CODE BEGIN I2C1_Init 2 */
 
-  /* USER CODE END USART2_Init 2 */
+  /* USER CODE END I2C1_Init 2 */
 
 }
 
@@ -300,13 +312,14 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, R4_Pin|R3_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, R4_1_Pin|R3_1_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, R1_Pin|LD2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, R3_2_Pin|R4_2_Pin|R1_1_Pin|LD2_Pin
+                          |R2_2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, R2_Pin|Light_bulb_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, R2_1_Pin|R1_2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
@@ -314,38 +327,42 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : R4_Pin R3_Pin */
-  GPIO_InitStruct.Pin = R4_Pin|R3_Pin;
+  /*Configure GPIO pins : R4_1_Pin R3_1_Pin */
+  GPIO_InitStruct.Pin = R4_1_Pin|R3_1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : C1_Pin C2_Pin C3_Pin */
-  GPIO_InitStruct.Pin = C1_Pin|C2_Pin|C3_Pin;
+  /*Configure GPIO pins : C1_1_Pin C2_1_Pin C3_1_Pin C3_2_Pin
+                           C4_2_Pin */
+  GPIO_InitStruct.Pin = C1_1_Pin|C2_1_Pin|C3_1_Pin|C3_2_Pin
+                          |C4_2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : R1_Pin LD2_Pin */
-  GPIO_InitStruct.Pin = R1_Pin|LD2_Pin;
+  /*Configure GPIO pins : R3_2_Pin R4_2_Pin R1_1_Pin LD2_Pin
+                           R2_2_Pin */
+  GPIO_InitStruct.Pin = R3_2_Pin|R4_2_Pin|R1_1_Pin|LD2_Pin
+                          |R2_2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : R2_Pin Light_bulb_Pin */
-  GPIO_InitStruct.Pin = R2_Pin|Light_bulb_Pin;
+  /*Configure GPIO pins : R2_1_Pin R1_2_Pin */
+  GPIO_InitStruct.Pin = R2_1_Pin|R1_2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : C4_Pin */
-  GPIO_InitStruct.Pin = C4_Pin;
+  /*Configure GPIO pins : C2_2_Pin C1_2_Pin C4_1_Pin */
+  GPIO_InitStruct.Pin = C2_2_Pin|C1_2_Pin|C4_1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-  HAL_GPIO_Init(C4_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 
@@ -438,10 +455,11 @@ void parse_calculations_raw(char inputs[75][100]) {
         if (found_open && tracker == 0) {
             // Creates a new array (inside) to pass through and calculate new value
             int inside_length = close_index - open_index - 1;
-            char inside[inside_length + 1][100]; // +1 ensures null terminator
+            char inside[75][100]; // +1 ensures null terminator
             for (int i = 0; i < inside_length; i++) {
                 copy_array(inside[i], inputs[open_index + i + 1]);
             }
+            inside[inside_length][0] = '\0';
             parse_calculations_raw(inside);
 
             // Replace the "(" with the calculated inside result
@@ -1036,7 +1054,6 @@ void clear_user_inputs(char user_inputs[][100], int* ptr_index) {
 		for (int inner = 0; inner < 100; inner++) {
 			user_inputs[index][inner] = '\0';
 		}
-		index++;
 	}
 	user_inputs[0][0] = '0';
 	user_inputs[1][0] = '+';
@@ -1045,47 +1062,95 @@ void clear_user_inputs(char user_inputs[][100], int* ptr_index) {
 }
 
 
-char* keypad_scan(void) {
+char* keypad1_scan(void) {
 	for (int row = 1; row < 5; row++) {
-		HAL_GPIO_WritePin(R1_GPIO_Port, R1_Pin, GPIO_PIN_RESET);
-		HAL_GPIO_WritePin(R2_GPIO_Port, R2_Pin, GPIO_PIN_RESET);
-		HAL_GPIO_WritePin(R3_GPIO_Port, R3_Pin, GPIO_PIN_RESET);
-		HAL_GPIO_WritePin(R4_GPIO_Port, R4_Pin, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(R1_1_GPIO_Port, R1_1_Pin, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(R2_1_GPIO_Port, R2_1_Pin, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(R3_1_GPIO_Port, R3_1_Pin, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(R4_1_GPIO_Port, R4_1_Pin, GPIO_PIN_RESET);
 		if (row == 1) {
-			HAL_GPIO_WritePin(R1_GPIO_Port, R1_Pin, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(R1_1_GPIO_Port, R1_1_Pin, GPIO_PIN_SET);
 		}
 		else if (row == 2) {
-			HAL_GPIO_WritePin(R2_GPIO_Port, R2_Pin, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(R2_1_GPIO_Port, R2_1_Pin, GPIO_PIN_SET);
 		}
 		else if (row == 3) {
-			HAL_GPIO_WritePin(R3_GPIO_Port, R3_Pin, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(R3_1_GPIO_Port, R3_1_Pin, GPIO_PIN_SET);
 		}
 		else if (row == 4) {
-			HAL_GPIO_WritePin(R4_GPIO_Port, R4_Pin, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(R4_1_GPIO_Port, R4_1_Pin, GPIO_PIN_SET);
 		}
 
 		for (int col = 1; col < 5; col++) {
 			GPIO_TypeDef* col_port;
 			uint16_t col_pin;
 			if (col == 1) {
-				col_port = C1_GPIO_Port;
-				col_pin = C1_Pin;
+				col_port = C1_1_GPIO_Port;
+				col_pin = C1_1_Pin;
 			}
 			else if (col == 2) {
-				col_port = C2_GPIO_Port;
-				col_pin = C2_Pin;
+				col_port = C2_1_GPIO_Port;
+				col_pin = C2_1_Pin;
 			}
 			else if (col == 3) {
-				col_port = C3_GPIO_Port;
-				col_pin = C3_Pin;
+				col_port = C3_1_GPIO_Port;
+				col_pin = C3_1_Pin;
 			}
 			else if (col == 4) {
-				col_port = C4_GPIO_Port;
-				col_pin = C4_Pin;
+				col_port = C4_1_GPIO_Port;
+				col_pin = C4_1_Pin;
 			}
 			GPIO_PinState pin_state = HAL_GPIO_ReadPin(col_port, col_pin);
 			if (pin_state == GPIO_PIN_SET) {
-				return keypad[row - 1][col - 1];
+				return keypad1[row - 1][col - 1];
+			}
+		}
+	}
+	return KEY_NOT_PRESSED;
+}
+
+
+char* keypad2_scan(void) {
+	for (int row = 1; row < 5; row++) {
+		HAL_GPIO_WritePin(R1_2_GPIO_Port, R1_2_Pin, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(R2_2_GPIO_Port, R2_2_Pin, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(R3_2_GPIO_Port, R3_2_Pin, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(R4_2_GPIO_Port, R4_2_Pin, GPIO_PIN_RESET);
+		if (row == 1) {
+			HAL_GPIO_WritePin(R1_2_GPIO_Port, R1_2_Pin, GPIO_PIN_SET);
+		}
+		else if (row == 2) {
+			HAL_GPIO_WritePin(R2_2_GPIO_Port, R2_2_Pin, GPIO_PIN_SET);
+		}
+		else if (row == 3) {
+			HAL_GPIO_WritePin(R3_2_GPIO_Port, R3_2_Pin, GPIO_PIN_SET);
+		}
+		else if (row == 4) {
+			HAL_GPIO_WritePin(R4_2_GPIO_Port, R4_2_Pin, GPIO_PIN_SET);
+		}
+
+		for (int col = 1; col < 5; col++) {
+			GPIO_TypeDef* col_port;
+			uint16_t col_pin;
+			if (col == 1) {
+				col_port = C1_2_GPIO_Port;
+				col_pin = C1_2_Pin;
+			}
+			else if (col == 2) {
+				col_port = C2_2_GPIO_Port;
+				col_pin = C2_2_Pin;
+			}
+			else if (col == 3) {
+				col_port = C3_2_GPIO_Port;
+				col_pin = C3_2_Pin;
+			}
+			else if (col == 4) {
+				col_port = C4_2_GPIO_Port;
+				col_pin = C4_2_Pin;
+			}
+			GPIO_PinState pin_state = HAL_GPIO_ReadPin(col_port, col_pin);
+			if (pin_state == GPIO_PIN_SET) {
+				return keypad2[row - 1][col - 1];
 			}
 		}
 	}

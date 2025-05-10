@@ -4,7 +4,7 @@
 
 // define
 double PI = 3.1415926535898793238462643383279502884197169399375;
-int DEBUGGING = 1;
+int DEBUGGING = 0;
 
 int main();
 double calculate(char test[100], double expected);
@@ -39,7 +39,7 @@ char keypad[4][4][100] = {
 
 int main() {
     // More complicated expressions with mixed unary operators:
-    // char test1[100]  = "2+3*4";                               calculate(test1, 14.0);
+    // char test1[100]  = "(7*5)-(5+--(5*3))";                               calculate(test1, 10.0);
     // char test2[100]  = "log(15-2^2+sin(10-2*45))/12+3^0.5";   calculate(test2, 1.815439072);
     // char test3[100]  = "sin(0)+cos(0)";                       calculate(test3, 1.0);
     // char test4[100]  = "5*(2+3)^2";                           calculate(test4, 125.0);
@@ -59,7 +59,7 @@ int main() {
     // char test18[100] = "3^(-2)";                              calculate(test18, 0.111111111); // 1/9
     // char test19[100] = "-sin(-180/2)";                        calculate(test19, 1.0);
     // char test20[100] = "(2+3)*(4+5)";                         calculate(test20, 45.0);
-    // char test21[100] = "sin(30) + cos(60)";                   calculate(test21, 1.0);              // 0.5 + 0.5
+    // char test21[100] = "sin(30)+cos(60)";                   calculate(test21, 1.0);              // 0.5 + 0.5
     // char test22[100] = "log(1000)";                           calculate(test22, 3.0);              // base 10
     // char test23[100] = "2^3^1";                               calculate(test23, 8.0);              // 2^(3)
     // char test24[100] = "2^(3^0)";                             calculate(test24, 2.0);              // 2^1
@@ -68,7 +68,7 @@ int main() {
     // char test27[100] = "-3^2";                                calculate(test27, -9.0);             // unary minus before power
     // char test28[100] = "(-3)^2";                              calculate(test28, 9.0);              // parentheses override precedence
     // char test29[100] = "-(-(-1))";                            calculate(test29, -1.0);             // triple negation
-    char test30[100] = "2^2^2^0";                             calculate(test30, 16.0);             // 2^(2^(2^0)) = 2^2 = 4, 2^4 = 16
+    // char test30[100] = "2^2^2^0";                             calculate(test30, 4.0);             // 2^(2^(2^0)) = 2^2 = 4, 2^4 = 16
     // char test31[100] = "log(1+9)";                            calculate(test31, 1.0);              // log(10)
     // char test32[100] = "cos(0)*sin(90)";                      calculate(test32, 1.0);              // 1*1
     // char test33[100] = "tan(45)+tan(135)";                    calculate(test33, 0.0);              // 1 + (-1)
@@ -210,7 +210,7 @@ void parse_calculations_raw(char inputs[75][100]) {
         if (found_open && tracker == 0) {
             // Creates a new array (inside) to pass through and calculate new value
             int inside_length = close_index - open_index - 1;
-            char inside[inside_length + 1][100]; // +1 ensures null terminator
+            char inside[75][100];
             for (int i = 0; i < inside_length; i++) {
                 copy_array(inside[i], inputs[open_index + i + 1]);
             }
