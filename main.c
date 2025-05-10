@@ -32,6 +32,7 @@
 #define KEY_PRESSED       0x00
 #define PI                3.1415926535898793238462643383279502884197169399375
 #define DEBUGGING         0
+#define SLAVE_ADDRESS_LCD 0x4E
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -57,6 +58,8 @@ char keypad2[4][4][100] = {
     {"0", ".", "=", "+"}   // Row 4
 };
 
+
+char display[16] = {};
 char user_inputs[75][100] = {};
 int current_index = 0;
 int new_key;
@@ -103,6 +106,14 @@ double round(double num);
 int check(double num1, double num2);
 char* keypad1_scan(void);
 char* keypad2_scan(void);
+void lcd_send_string (char *str);
+void lcd_send_data (char data);
+void lcd_put_cur(int row, int col);
+void lcd_send_cmd (char cmd);
+void lcd_init (void);
+void lcd_clear();
+void fill_display(char display[16], char arr[75][100], int index);
+void clear_display(char display[16]);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -124,7 +135,7 @@ int main(void)
   /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
+	HAL_Init();
 
   /* USER CODE BEGIN Init */
 
@@ -145,6 +156,14 @@ int main(void)
   user_inputs[1][0] = '+';
   current_index = 2;
   new_key = 1;
+
+
+  // Display Strings
+  lcd_init();
+  lcd_put_cur(0, 0);
+  lcd_send_string ("Calculator by");
+  lcd_put_cur(1, 0);
+  lcd_send_string("Gabriel Hoh");
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -186,8 +205,13 @@ int main(void)
 		  }
 		  printf("\n");
 
+
+
 		  // Call a function to update the LCD display (pass in user inputs), void function
-		  //
+		  fill_display(display, user_inputs, current_index);
+		  printf("Displaying %s\n", display);
+		  lcd_clear();
+		  lcd_send_string(display);
 
 		  new_key = 0;
 	  }
@@ -195,7 +219,7 @@ int main(void)
 		  // If key is not pressed, set that a new key is ready to be processed
 		  // Turn off debug light
 		  new_key = 1;
-		  HAL_GPIO_WritePin(Light_bulb_GPIO_Port, Light_bulb_Pin, GPIO_PIN_RESET);
+//		  HAL_GPIO_WritePin(Light_bulb_GPIO_Port, Light_bulb_Pin, GPIO_PIN_RESET);
 	  }
 	  // If pressed key is = then process
 	  if (key[0] == '=' && new_key) {
@@ -205,9 +229,14 @@ int main(void)
 		  parse_calculations_raw(user_inputs);
 		  printf("%s\n", user_inputs[0]);
 
+		  lcd_put_cur(1, 0);
+		  lcd_send_string(user_inputs[0]);
+
+
+
 		  // Reset user_input array (call function to do so)
 		  clear_user_inputs(user_inputs, &current_index);
-
+		  clear_display(display);
 		  new_key = 0;
 	  }
   }
@@ -475,7 +504,7 @@ void parse_calculations_raw(char inputs[75][100]) {
         }
     }
     parse_calculations_bracketless(inputs);
-    num_to_arr(round(arr_to_num(user_inputs[0])), user_inputs[0]);
+    num_to_arr(round(arr_to_num(inputs[0])), inputs[0]);
 }
 
 
@@ -1030,9 +1059,17 @@ void logarithm(char arr[100]) {
 }
 
 double round(double num) {
-    num *= 100000000;
+    double whole = (int)num;
+    double dec = num - whole;
+    double multiplier = 1.0;
+    while (dec > 0.000001 && num < 214748364) {
+        multiplier *= 10;
+        num *= 10;
+        whole = (int)num;
+        dec = num - whole;
+    }
     num = (int)num;
-    num /= 100000000;
+    num /= multiplier;
     return num;
 }
 
@@ -1051,7 +1088,7 @@ int check(double num1, double num2) {
 
 
 void clear_user_inputs(char user_inputs[][100], int* ptr_index) {
-	for (int index = 0; index < 76; index++) {
+	for (int index = 0; index < 75; index++) {
 		for (int inner = 0; inner < 100; inner++) {
 			user_inputs[index][inner] = '\0';
 		}
@@ -1156,6 +1193,102 @@ char* keypad2_scan(void) {
 		}
 	}
 	return KEY_NOT_PRESSED;
+}
+
+void lcd_init (void) {
+	// 4 bit initialisation
+	HAL_Delay(50);  // wait for >40ms
+	lcd_send_cmd (0x30);
+	HAL_Delay(5);  // wait for >4.1ms
+	lcd_send_cmd (0x30);
+	HAL_Delay(1);  // wait for >100us
+	lcd_send_cmd (0x30);
+	HAL_Delay(10);
+	lcd_send_cmd (0x20);  // 4bit mode
+	HAL_Delay(10);
+	// display initialization
+	lcd_send_cmd (0x28); // Function set --> DL=0 (4 bit mode), N = 1 (2 line display) F = 0 (5x8 characters)
+	HAL_Delay(1);
+	lcd_send_cmd (0x08); //Display on/off control --> D=0,C=0, B=0  ---> display off
+	HAL_Delay(1);
+	lcd_send_cmd (0x01);  // clear display
+	HAL_Delay(2);
+	lcd_send_cmd (0x06); //Entry mode set --> I/D = 1 (increment cursor) & S = 0 (no shift)
+	HAL_Delay(1);
+	lcd_send_cmd (0x0C); //Display on/off control --> D = 1, C and B = 0. (Cursor and blink, last two bits)
+}
+
+void lcd_send_cmd (char cmd) {
+	// Split command into two 4 bit chunks
+	char data_u, data_l;
+	data_u = (cmd&0xf0);
+	data_l = ((cmd<<4)&0xf0);
+
+	uint8_t data_t[4];
+	data_t[0] = data_u|0x0C;  //en=1, rs=0 -> bxxxx1100
+	data_t[1] = data_u|0x08;  //en=0, rs=0 -> bxxxx1000
+	data_t[2] = data_l|0x0C;  //en=1, rs=0 -> bxxxx1100
+	data_t[3] = data_l|0x08;  //en=0, rs=0 -> bxxxx1000
+	HAL_I2C_Master_Transmit (&hi2c1, SLAVE_ADDRESS_LCD,(uint8_t *) data_t, 4, 100);
+	HAL_Delay(5);
+}
+
+void lcd_send_data (char data) {
+	char data_u, data_l;
+	uint8_t data_t[4];
+	data_u = (data&0xf0);
+	data_l = ((data<<4)&0xf0);
+	data_t[0] = data_u|0x0D;  //en=1, rs=1 -> bxxxx1101
+	data_t[1] = data_u|0x09;  //en=0, rs=1 -> bxxxx1001
+	data_t[2] = data_l|0x0D;  //en=1, rs=1 -> bxxxx1101
+	data_t[3] = data_l|0x09;  //en=0, rs=1 -> bxxxx1001
+	HAL_I2C_Master_Transmit (&hi2c1, SLAVE_ADDRESS_LCD,(uint8_t *) data_t, 4, 100);
+}
+
+void lcd_send_string (char *str) {
+	int index = 0;
+	while (str[index] != '\0') {
+		lcd_send_data(str[index]);
+		index++;
+	}
+}
+
+void lcd_put_cur(int row, int col){
+	switch (row) {
+	case 0:
+		col |= 0x80;
+		break;
+	case 1:
+		col |= 0xC0;
+		break;
+	}
+	lcd_send_cmd (col);
+}
+
+void lcd_clear() {
+	lcd_send_cmd(0x01);  // clear display
+	HAL_Delay(10);
+}
+
+
+void fill_display(char display[16], char arr[75][100], int index) {
+	int i = index - 16;
+	if (i < 2) {
+		i = 2;
+	}
+	int tracker = 0;
+	while (i < index) {
+		display[tracker] = arr[i][0];
+		tracker++;
+		i++;
+	}
+	display[15] = '\0';
+}
+
+void clear_display(char display[16]) {
+	for (int i = 0; i < 16; i++) {
+		display[i] = '\0';
+	}
 }
 /* USER CODE END 4 */
 

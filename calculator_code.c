@@ -4,7 +4,7 @@
 
 // define
 double PI = 3.1415926535898793238462643383279502884197169399375;
-int DEBUGGING = 0;
+int DEBUGGING = 1;
 
 int main();
 double calculate(char test[100], double expected);
@@ -39,7 +39,7 @@ char keypad[4][4][100] = {
 
 int main() {
     // More complicated expressions with mixed unary operators:
-    char test1[100]  = "(5478*654)";                               calculate(test1, 10.0);
+    // char test1[100]  = "5+5";                               calculate(test1, 10.0);
     // char test2[100]  = "log(15-2^2+sin(10-2*45))/12+3^0.5";   calculate(test2, 1.815439072);
     // char test3[100]  = "sin(0)+cos(0)";                       calculate(test3, 1.0);
     // char test4[100]  = "5*(2+3)^2";                           calculate(test4, 125.0);
@@ -332,6 +332,7 @@ void parse_calculations_bracketless(char inputs[75][100]) {
             }
             found_function = 0;
             length = get_array_length(inputs);
+            printf("here2");
         }
     }
     
@@ -787,13 +788,13 @@ double round(double num) {
     double whole = (int)num;
     double dec = num - whole;
     int multiplier = 1;
-    int tracker = 0;
-    while (dec > 0.000001 || num > 214748364) {
+    while (dec > 0.000001 && num < 214748364) {
         multiplier *= 10;
         num *= 10; 
         whole = (int)num;
         dec = num - whole;
     }
+    num = (int)num;
     num /= multiplier;
     return num;
 }
